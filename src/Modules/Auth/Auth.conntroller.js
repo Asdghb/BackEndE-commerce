@@ -35,7 +35,9 @@ const register = asyncHandler(async (req, res, next) => {
     activationCode,
   });
   // create link activationCode
-  const link = `https://fornt-end-e-commerce-13o8.vercel.app/auth/confirmEmail/${activationCode}`;
+  // https://backende-commerce-t418.onrender.com
+  // https://fornt-end-e-commerce-13o8.vercel.app
+  const link = `https://backende-commerce-t418.onrender.com/auth/confirmEmail/${activationCode}`;
   const mealhtml = template_Email(link, username);
   // send Email
   const isSendEmail = await sendEmail({
@@ -63,7 +65,7 @@ const ActivateAccount = asyncHandler(async (req, res, next) => {
   user.activationCode = undefined;
   await Cart.create({ user: user._id });
   await user.save();
-  return res.redirect("https://fornt-end-e-commerce-13o8.vercel.app/login");
+  return res.redirect("https://fornt-end-e-commerce-13o8.vercel.app/Login");
   // return res.redirect("http://localhost:3001/login");
 });
 // __________________________________________________________________________
