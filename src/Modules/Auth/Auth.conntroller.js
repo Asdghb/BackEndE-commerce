@@ -35,7 +35,7 @@ const register = asyncHandler(async (req, res, next) => {
     activationCode,
   });
   // create link activationCode
-  const link = `https://fornt-end-e-commerce-13o8.vercel.app/auth/confirmEmail/${activationCode}`;
+  const link = `https://backende-commerce-t418.onrender.com/auth/confirmEmail/${activationCode}`;
   const mealhtml = template_Email(link, username);
   // send Email
   const isSendEmail = await sendEmail({
