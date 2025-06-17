@@ -63,7 +63,8 @@ const ActivateAccount = asyncHandler(async (req, res, next) => {
   user.activationCode = undefined;
   await Cart.create({ user: user._id });
   await user.save();
-  return res.redirect("http://localhost:3001/login");
+  return res.redirect("https://fornt-end-e-commerce-13o8.vercel.app/");
+  // return res.redirect("http://localhost:3001/login");
 });
 // __________________________________________________________________________
 // Login
