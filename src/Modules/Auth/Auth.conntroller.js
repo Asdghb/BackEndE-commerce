@@ -26,7 +26,7 @@ const register = asyncHandler(async (req, res, next) => {
     Number(process.env.SALT_HASH)
   );
   // activationCode
-  const activationCode = crypto.randomBytes(64).toString("hex");
+  const activationCode = Math.floor(1000 + Math.random() * 9000).toString();
   // create user
   const user = await User.create({
     username,
