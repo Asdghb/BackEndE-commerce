@@ -307,6 +307,40 @@ const CreateOrder = asyncHandler(async (req, res, next) => {
   }
 
   // ✅ في حالة الدفع بالفيزا (Stripe)
+  // if (payment === "visa") {
+  //   const stripe = new Stripe(process.env.STRIPE_Secret_key);
+
+  //   let existcoupon;
+  //   if (order.coupon && order.coupon.name) {
+  //     existcoupon = await stripe.coupons.create({
+  //       percent_off: order.coupon.discount,
+  //       duration: "once",
+  //     });
+  //   }
+
+  //   const session = await stripe.checkout.sessions.create({
+  //     metadata: { order_id: order._id.toString() },
+  //     payment_method_types: ["card"],
+  //     mode: "payment",
+  //     success_url: process.env.success_url,
+  //     cancel_url: process.env.cancel_url,
+  //     line_items: order.products.map((product) => ({
+  //       price_data: {
+  //         currency: "egp",
+  //         product_data: {
+  //           name: product.name,
+  //           images: [product.productId.defaultImage?.url || ""],
+  //         },
+  //         unit_amount: product.itemprice * 100,
+  //       },
+  //       quantity: product.quantity,
+  //     })),
+  //     discounts: existcoupon ? [{ coupon: existcoupon.id }] : [],
+  //   });
+
+  //   return res.json({ success: true, results: session.url });
+  // }
+
   if (payment === "visa") {
     const stripe = new Stripe(process.env.STRIPE_Secret_key);
 
@@ -318,23 +352,35 @@ const CreateOrder = asyncHandler(async (req, res, next) => {
       });
     }
 
+    // ✅ تجهيز المنتجات بدون إرسال صورة فارغة
+    const line_items = [];
+
+    for (let product of order.products) {
+      const productDoc = await Product.findById(product.productId);
+      const imageUrl = productDoc?.defaultImage?.url;
+
+      const item = {
+        price_data: {
+          currency: "egp",
+          product_data: {
+            name: product.name,
+            ...(imageUrl && { images: [imageUrl] }), // ✅ إرسال الصورة فقط إن وجدت
+          },
+          unit_amount: product.itemprice * 100,
+        },
+        quantity: product.quantity,
+      };
+
+      line_items.push(item);
+    }
+
     const session = await stripe.checkout.sessions.create({
       metadata: { order_id: order._id.toString() },
       payment_method_types: ["card"],
       mode: "payment",
       success_url: process.env.success_url,
       cancel_url: process.env.cancel_url,
-      line_items: order.products.map((product) => ({
-        price_data: {
-          currency: "egp",
-          product_data: {
-            name: product.name,
-            images: [product.productId.defaultImage?.url || ""],
-          },
-          unit_amount: product.itemprice * 100,
-        },
-        quantity: product.quantity,
-      })),
+      line_items,
       discounts: existcoupon ? [{ coupon: existcoupon.id }] : [],
     });
 
@@ -369,7 +415,10 @@ const CancelOrder = asyncHandler(async (req, res, next) => {
   }
   // 3. حذف الطلب من قاعدة البيانات
   await Order.findByIdAndDelete(order._id);
-  res.json({ success: true, message: "Order and invoice deleted successfully." });
+  res.json({
+    success: true,
+    message: "Order and invoice deleted successfully.",
+  });
 });
 // __________________________________________________________________________
 // Webhook
@@ -417,7 +466,7 @@ const GetAllOrder = asyncHandler(async (req, res, next) => {
 // GetAllOrderUser
 const GetAllOrderUser = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  console.log(userId)
+  console.log(userId);
   const orders = await Order.find({ user: userId }).sort({ createdAt: -1 });
   res.status(200).json({
     success: true,
@@ -439,7 +488,7 @@ const UpdateSingleOrder = asyncHandler(async (req, res, next) => {
     "shipped",
     "delivered",
     "visa payed",
-    "failed to pay"
+    "failed to pay",
   ];
   if (deleteStatuses.includes(status)) {
     // ⏳ حذف تلقائي بعد 7 أيام
@@ -459,5 +508,5 @@ module.exports = {
   webhooks,
   GetAllOrder,
   GetAllOrderUser,
-  UpdateSingleOrder
+  UpdateSingleOrder,
 };
