@@ -13,10 +13,169 @@ const { default: Stripe } = require("stripe");
 const stripe = Stripe(process.env.STRIPE_Secret_key);
 // __________________________________________________________________________
 // create Order
+// const CreateOrder = asyncHandler(async (req, res, next) => {
+//   console.log("🟢 Received Order Body:", req.body);
+//   const user = req.user;
+//   const { payment, address, phone, coupon } = req.body;
+//   let checkcoupon;
+//   if (coupon) {
+//     checkcoupon = await Coupon.findOne({
+//       name: coupon,
+//       expiredAt: { $gt: new Date() },
+//     });
+//     if (!checkcoupon) return next(new Error("Invalid coupon!"));
+//   }
+//   const cart = await Cart.findOne({ user: user._id });
+//   if (!cart || cart.products.length < 1)
+//     return next(new Error("Invalid cart or empty!"));
+//   const products = cart.products;
+//   let orderproducts = [];
+//   let orderprice = 0;
+//   for (let item of products) {
+//     const product = await Product.findById(item.productId);
+//     if (!product)
+//       return next(new Error(`Product ${item.productId} not found!`));
+//     if (!product.inStock(item.quantity)) {
+//       return next(
+//         new Error(
+//           `${product.name} out of stock! Only ${product.availableItems} left.`
+//         )
+//       );
+//     }
+//     orderproducts.push({
+//       productId: product._id,
+//       quantity: item.quantity,
+//       name: product.name,
+//       itemprice: product.finalPrice,
+//       totalPrice: item.quantity * product.finalPrice,
+//     });
+//     orderprice += item.quantity * product.finalPrice;
+//   }
+//   let finalPrice = orderprice;
+//   if (checkcoupon) {
+//     finalPrice -= (orderprice * checkcoupon.discount) / 100;
+//   }
+//   const order = await Order.create({
+//     user: user._id,
+//     products: orderproducts,
+//     address,
+//     phone,
+//     price: finalPrice,
+//     payment,
+//     coupon: checkcoupon
+//       ? {
+//           id: checkcoupon._id,
+//           name: checkcoupon.name,
+//           discount: checkcoupon.discount,
+//         }
+//       : undefined,
+//   });
+//   const invoice = {
+//     shipping: {
+//       name: user.username,
+//       address: order.address,
+//       country: "Egypt",
+//     },
+//     items: order.products,
+//     subtotal: order.price,
+//     paid: finalPrice,
+//     invoice_nr: order._id,
+//   };
+//   const pdfpath = path.join(__dirname, "invoiceTemp", `${order._id}.pdf`);
+//   await createInvoice(invoice, pdfpath);
+//   // تحقق من وجود الملف بعد الإنشاء
+//   try {
+//     await fs.access(pdfpath);
+//     // console.log("✅ ملف الفاتورة تم إنشاؤه بنجاح:", pdfpath);
+//   } catch (err) {
+//     console.error("❌ لم يتم إنشاء ملف الفاتورة:", err);
+//     return next(new Error("Invoice PDF not generated"));
+//   }
+//   // ✅ اقرأ الملف كـ buffer قبل الرفع
+//   const pdfBuffer = await fs.readFile(pdfpath);
+//   // ✅ ارفع الملف إلى Cloudinary
+//   const { secure_url, public_id } = await cloudinary.uploader.upload(pdfpath, {
+//     folder: `${process.env.FOLDER_CLOUD_NAME}/order/invoice/${user._id}`,
+//   });
+//   order.invoice = { id: public_id, url: secure_url };
+//   await order.save();
+//   console.log("userEmail :", user.email);
+//   // ✅ أرسل الفاتورة من buffer
+//   const isSend = await sendEmail({
+//     to: user.email,
+//     subject: "Order Invoice",
+//     attachments: [
+//       {
+//         filename: `invoice-${order._id}.pdf`,
+//         content: pdfBuffer,
+//         contentType: "application/pdf",
+//         encoding: "base64",
+//       },
+//     ],
+//   });
+//   if (isSend) {
+//     await UpdateStockProduct(order.products, true);
+//     await clearCart(user._id);
+//   }
+//   // ✅ احذف الملف من السيرفر
+//   try {
+//     await fs.unlink(pdfpath);
+//   } catch (err) {
+//     console.error("Failed to delete PDF after upload:", err);
+//   }
+//   // stripe
+//   if (payment == "visa") {
+//     const stripe = new Stripe(process.env.STRIPE_Secret_key);
+//     // جذا الكبون
+//     let existcoupon;
+//     if (order.coupon.name !== undefined) {
+//       existcoupon = await stripe.coupons.create({
+//         percent_off: order.coupon.discount,
+//         duration: "once",
+//       });
+//     }
+//     const session = await stripe.checkout.sessions.create({
+//       metadata: { order_id: order._id.toString() },
+//       // الدفع عن طريق card
+//       payment_method_types: ["card"],
+//       // اشتراك ولا دفع عادى ؟
+//       mode: "payment",
+//       // صفحة التوجه اليها بعد الدفع بنجاح
+//       success_url: process.env.success_url,
+//       // صفحة التوجة اليها لو ما اريد ادفع
+//       cancel_url: process.env.cancel_url,
+//       // لوب على منتجات الاوردر
+//       line_items: order.products.map((product) => {
+//         return {
+//           price_data: {
+//             currency: "egp",
+//             product_data: {
+//               name: product.name,
+//               images: [product.productId.defaultImage?.url],
+//             },
+//             unit_amount: product.itemprice * 100,
+//           },
+//           quantity: product.quantity,
+//         };
+//       }),
+//       // الكبون
+//       discounts: existcoupon ? [{ coupon: existcoupon.id }] : [],
+//     });
+//     return res.json({ success: true, results: session.url });
+//   }
+//   return res.json({
+//     success: true,
+//     message: "Order placed successfully! Please check your email.",
+//   });
+// });
+
+// دى بالنسبة ل Render
 const CreateOrder = asyncHandler(async (req, res, next) => {
   console.log("🟢 Received Order Body:", req.body);
   const user = req.user;
   const { payment, address, phone, coupon } = req.body;
+
+  // ✅ التحقق من الكوبون
   let checkcoupon;
   if (coupon) {
     checkcoupon = await Coupon.findOne({
@@ -25,16 +184,22 @@ const CreateOrder = asyncHandler(async (req, res, next) => {
     });
     if (!checkcoupon) return next(new Error("Invalid coupon!"));
   }
+
+  // ✅ التحقق من العربة
   const cart = await Cart.findOne({ user: user._id });
   if (!cart || cart.products.length < 1)
     return next(new Error("Invalid cart or empty!"));
+
   const products = cart.products;
   let orderproducts = [];
   let orderprice = 0;
+
+  // ✅ التحقق من المنتجات والمخزون
   for (let item of products) {
     const product = await Product.findById(item.productId);
     if (!product)
       return next(new Error(`Product ${item.productId} not found!`));
+
     if (!product.inStock(item.quantity)) {
       return next(
         new Error(
@@ -42,6 +207,7 @@ const CreateOrder = asyncHandler(async (req, res, next) => {
         )
       );
     }
+
     orderproducts.push({
       productId: product._id,
       quantity: item.quantity,
@@ -49,12 +215,17 @@ const CreateOrder = asyncHandler(async (req, res, next) => {
       itemprice: product.finalPrice,
       totalPrice: item.quantity * product.finalPrice,
     });
+
     orderprice += item.quantity * product.finalPrice;
   }
+
+  // ✅ حساب السعر النهائي بعد الخصم
   let finalPrice = orderprice;
   if (checkcoupon) {
     finalPrice -= (orderprice * checkcoupon.discount) / 100;
   }
+
+  // ✅ إنشاء الطلب
   const order = await Order.create({
     user: user._id,
     products: orderproducts,
@@ -70,6 +241,8 @@ const CreateOrder = asyncHandler(async (req, res, next) => {
         }
       : undefined,
   });
+
+  // ✅ إعداد بيانات الفاتورة
   const invoice = {
     shipping: {
       name: user.username,
@@ -81,26 +254,32 @@ const CreateOrder = asyncHandler(async (req, res, next) => {
     paid: finalPrice,
     invoice_nr: order._id,
   };
-  const pdfpath = path.join(__dirname, "invoiceTemp", `${order._id}.pdf`);
+
+  // ✅ إنشاء ملف الفاتورة في /tmp
+  const pdfpath = path.join("/tmp", `${order._id}.pdf`);
   await createInvoice(invoice, pdfpath);
-  // تحقق من وجود الملف بعد الإنشاء
+
+  // ✅ التأكد من وجود الملف
   try {
     await fs.access(pdfpath);
-    // console.log("✅ ملف الفاتورة تم إنشاؤه بنجاح:", pdfpath);
   } catch (err) {
     console.error("❌ لم يتم إنشاء ملف الفاتورة:", err);
     return next(new Error("Invoice PDF not generated"));
   }
-  // ✅ اقرأ الملف كـ buffer قبل الرفع
+
+  // ✅ قراءة الملف كـ buffer
   const pdfBuffer = await fs.readFile(pdfpath);
-  // ✅ ارفع الملف إلى Cloudinary
+
+  // ✅ رفع الفاتورة إلى Cloudinary
   const { secure_url, public_id } = await cloudinary.uploader.upload(pdfpath, {
     folder: `${process.env.FOLDER_CLOUD_NAME}/order/invoice/${user._id}`,
   });
+
+  // ✅ ربط الفاتورة بالطلب
   order.invoice = { id: public_id, url: secure_url };
   await order.save();
-  console.log("userEmail :", user.email);
-  // ✅ أرسل الفاتورة من buffer
+
+  // ✅ إرسال الفاتورة بالبريد
   const isSend = await sendEmail({
     to: user.email,
     subject: "Order Invoice",
@@ -113,61 +292,62 @@ const CreateOrder = asyncHandler(async (req, res, next) => {
       },
     ],
   });
+
+  // ✅ تحديث المخزون وتفريغ العربة
   if (isSend) {
     await UpdateStockProduct(order.products, true);
     await clearCart(user._id);
   }
-  // ✅ احذف الملف من السيرفر
+
+  // ✅ حذف ملف الفاتورة المؤقت
   try {
     await fs.unlink(pdfpath);
   } catch (err) {
     console.error("Failed to delete PDF after upload:", err);
   }
-  // stripe
-  if (payment == "visa") {
+
+  // ✅ في حالة الدفع بالفيزا (Stripe)
+  if (payment === "visa") {
     const stripe = new Stripe(process.env.STRIPE_Secret_key);
-    // جذا الكبون
+
     let existcoupon;
-    if (order.coupon.name !== undefined) {
+    if (order.coupon && order.coupon.name) {
       existcoupon = await stripe.coupons.create({
         percent_off: order.coupon.discount,
         duration: "once",
       });
     }
+
     const session = await stripe.checkout.sessions.create({
       metadata: { order_id: order._id.toString() },
-      // الدفع عن طريق card
       payment_method_types: ["card"],
-      // اشتراك ولا دفع عادى ؟
       mode: "payment",
-      // صفحة التوجه اليها بعد الدفع بنجاح
       success_url: process.env.success_url,
-      // صفحة التوجة اليها لو ما اريد ادفع
       cancel_url: process.env.cancel_url,
-      // لوب على منتجات الاوردر
-      line_items: order.products.map((product) => {
-        return {
-          price_data: {
-            currency: "egp",
-            product_data: {
-              name: product.name,
-              images: [product.productId.defaultImage?.url],
-            },
-            unit_amount: product.itemprice * 100,
+      line_items: order.products.map((product) => ({
+        price_data: {
+          currency: "egp",
+          product_data: {
+            name: product.name,
+            images: [product.productId.defaultImage?.url || ""],
           },
-          quantity: product.quantity,
-        };
-      }),
-      // الكبون
+          unit_amount: product.itemprice * 100,
+        },
+        quantity: product.quantity,
+      })),
       discounts: existcoupon ? [{ coupon: existcoupon.id }] : [],
     });
+
     return res.json({ success: true, results: session.url });
   }
+
+  // ✅ الرد في حالة الدفع كاش
   return res.json({
     success: true,
     message: "Order placed successfully! Please check your email.",
   });
 });
+
 // __________________________________________________________________________
 // CancelOrder
 const CancelOrder = asyncHandler(async (req, res, next) => {
