@@ -77,7 +77,7 @@ const ActivateAccount = asyncHandler(async (req, res, next) => {
 
   const existingCart = await Cart.findOne({ user: user._id });
   if (!existingCart) {
-    await Cart.create({ user: user._id, products: [] });
+    await Cart.create({ user: user._id });
   }
 
   await user.save();
