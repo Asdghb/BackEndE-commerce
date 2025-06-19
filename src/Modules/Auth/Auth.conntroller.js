@@ -65,6 +65,7 @@ const register = asyncHandler(async (req, res, next) => {
 //   );
 // });
 // POST /api/auth/confirmEmail
+
 const ActivateAccount = asyncHandler(async (req, res, next) => {
   const { activationCode } = req.body;
   const user = await User.findOne({ activationCode });
@@ -73,8 +74,14 @@ const ActivateAccount = asyncHandler(async (req, res, next) => {
   }
   user.isCofirmed = true;
   user.activationCode = undefined;
-  await Cart.create({ user: user._id });
+
+  const existingCart = await Cart.findOne({ user: user._id });
+  if (!existingCart) {
+    await Cart.create({ user: user._id, products: [] });
+  }
+
   await user.save();
+
   return res.json({ success: true, message: "تم تفعيل الحساب بنجاح ✅" });
 });
 
