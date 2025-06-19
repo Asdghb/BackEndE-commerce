@@ -21,7 +21,7 @@ const {
 AuthRouter.post("/register", isValid(registerData), register);
 // __________________________________________________________________________
 // 2- Activate account
-AuthRouter.get("/confirmEmail/:activationCode",isValid(activateAcount),ActivateAccount);
+AuthRouter.post("/confirmEmail",isValid(activateAcount),ActivateAccount);
 // __________________________________________________________________________
 // 3- Login
 // http://localhost:3000/auth/login

@@ -1,4 +1,4 @@
-const template_Email = (link , username ) => `
+const template_Email = (activationCode , username ) => `
 <!DOCTYPE html>
 <html lang="ar">
 <head>
@@ -39,7 +39,7 @@ const template_Email = (link , username ) => `
     <h2>مرحبًا {${username}}،</h2>
     <p>شكرًا لانضمامك إلى <strong>E-commerce App</strong>!</p>
     <p>يرجى استخدام رمز التحقق التالي لتفعيل حسابك:</p>
-    <div class="code"><a href="${link}">click</a></div>
+    <div> activationCode:${activationCode} </div>
     <p>إذا لم تطلب هذا الرمز، يرجى تجاهل هذا البريد.</p>
     <div class="footer">© 2025 E-commerce App جميع الحقوق محفوظة</div>
   </div>

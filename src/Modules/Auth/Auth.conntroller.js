@@ -34,9 +34,7 @@ const register = asyncHandler(async (req, res, next) => {
     password: hashPassword,
     activationCode,
   });
-  // create link activationCode
-  const link = `${ process.env.CLIENT_URL}/auth/confirmEmail/${activationCode}`;
-  const mealhtml = template_Email(link, username);
+  const mealhtml = template_Email(activationCode, username);
   // send Email
   const isSendEmail = await sendEmail({
     to: email,
@@ -51,21 +49,35 @@ const register = asyncHandler(async (req, res, next) => {
 });
 // __________________________________________________________________________
 // ActivateAccount
+// const ActivateAccount = asyncHandler(async (req, res, next) => {
+//   const user = await User.findOne({
+//     activationCode: req.params.activationCode,
+//   });
+//   if (!user) {
+//     return next(new Error("User Not Found", { cause: 404 }));
+//   }
+//   user.isCofirmed = true;
+//   user.activationCode = undefined;
+//   await Cart.create({ user: user._id });
+//   await user.save();
+//   return res.redirect(
+//     `${process.env.CLIENT_URL}/login`
+//   );
+// });
+// POST /api/auth/confirmEmail
 const ActivateAccount = asyncHandler(async (req, res, next) => {
-  const user = await User.findOne({
-    activationCode: req.params.activationCode,
-  });
+  const { activationCode } = req.body;
+  const user = await User.findOne({ activationCode });
   if (!user) {
-    return next(new Error("User Not Found", { cause: 404 }));
+    return res.status(400).json({ success: false, message: "الكود غير صحيح أو الحساب مفعل بالفعل ❌" });
   }
   user.isCofirmed = true;
   user.activationCode = undefined;
   await Cart.create({ user: user._id });
   await user.save();
-  return res.redirect(
-    `${process.env.CLIENT_URL}/login`
-  );
+  return res.json({ success: true, message: "تم تفعيل الحساب بنجاح ✅" });
 });
+
 // __________________________________________________________________________
 // Login
 const Login = asyncHandler(async (req, res, next) => {
