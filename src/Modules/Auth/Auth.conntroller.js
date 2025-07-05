@@ -1,11 +1,10 @@
 const { asyncHandler } = require("../../Utils/asyncHandler");
+const dotenv = require("dotenv").config();
 const User = require("../../../DB/Models/User.models");
 const Cart = require("../../../DB/Models/Cart.models");
 const Token = require("../../../DB/Models/Token.models");
 const sendEmail = require("../../Utils/SendEmail");
 const bcryptjs = require("bcryptjs");
-const dotenv = require("dotenv").config();
-const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const Random = require("randomstring");
 const template_Email = require("../../Utils/Tamplet_Email");
@@ -69,15 +68,17 @@ const ActivateAccount = asyncHandler(async (req, res, next) => {
   const { activationCode } = req.body;
   const user = await User.findOne({ activationCode });
   if (!user) {
-    return res.status(400).json({ success: false, message: "الكود غير صحيح أو الحساب مفعل بالفعل ❌" });
+    return res.status(400).json({
+      success: false,
+      message: "الكود غير صحيح أو الحساب مفعل بالفعل ❌",
+    });
   }
   user.isCofirmed = true;
   user.activationCode = undefined;
-  await Cart.create({ user: user._id });
+  await Cart.create({ user: user._id, products: [] });
   await user.save();
   return res.json({ success: true, message: "تم تفعيل الحساب بنجاح ✅" });
 });
-
 // __________________________________________________________________________
 // Login
 const Login = asyncHandler(async (req, res, next) => {
@@ -177,10 +178,81 @@ const ResetPassword = asyncHandler(async (req, res, next) => {
   });
 });
 // __________________________________________________________________________
+// NewCreateadmin
+const NewCreateadmin = asyncHandler(async (req, res, next) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return next(new Error("يرجى إدخال البريد الإلكتروني وكلمة المرور"));
+  }
+  const userExists = await User.findOne({ email });
+  if (userExists) {
+    return next(new Error("هذا البريد الإلكتروني مستخدم من قبل"));
+  }
+  const salt = await bcryptjs.genSalt(10);
+  const hashedPassword = await bcryptjs.hash(password, salt);
+  const adminUser = await User.create({
+    username: "admin",
+    email,
+    password: hashedPassword,
+    role: "admin",
+    isCofirmed: true,
+  });
+  if (adminUser) {
+    res.status(201).json({
+      message: "تم إنشاء الأدمن بنجاح ",
+    });
+  } else {
+    return next(new Error("فشل إنشاء الأدمن"));
+  }
+});
+// __________________________________________________________________________
+// Get All Admins
+const GetAllAdmin = asyncHandler(async (req, res,next) => {
+  const admins = await User.find({ role: "admin" });
+  if (!admins || admins.length === 0) {
+    return next(new Error("لا يوجد أي أدمنز في الموقع حاليًا."));
+  }
+  res.status(200).json({
+    success: true,
+    count: admins.length,
+    data: admins,
+  });
+});
+// __________________________________________________________________________
+// Delete Sangle Admin
+const DeleteSangleAdmin = asyncHandler(async (req, res, next) => {
+  const { AdminId } = req.params;
+  // البحث عن الأدمن
+  const admin = await User.findById(AdminId);
+  if (!admin) {
+    return res.status(404).json({
+      success: false,
+      message: "هذا المستخدم غير موجود",
+    });
+  }
+  if (admin.role !== "admin") {
+    return res.status(400).json({
+      success: false,
+      message: "هذا المستخدم ليس أدمن بالفعل",
+    });
+  }
+  // تعديل الرول من admin إلى user
+  admin.role = "user";
+  await admin.save();
+  res.status(200).json({
+    success: true,
+    message: "تم تحويل هذا الأدمن إلى مستخدم عادي بنجاح",
+    data: admin,
+  });
+});
+// __________________________________________________________________________
 module.exports = {
   register,
   ActivateAccount,
   Login,
   sendForgetCode,
   ResetPassword,
+  NewCreateadmin,
+  GetAllAdmin,
+  DeleteSangleAdmin,
 };

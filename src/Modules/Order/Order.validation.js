@@ -35,6 +35,7 @@ const UpdateSingleOrderValid = joi
       .valid(
         "placed",
         "refunded",
+        "paid",
         "shipped",
         "delivered",
         "cancelled",

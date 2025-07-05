@@ -17,7 +17,7 @@ const CreateBrand = asyncHandler(async (req, res, next) => {
   // upload Cloudinary!
   const { secure_url, public_id } = await cloudinary.uploader.upload(
     req.file.path,
-    { folder: `${process.env.FOLDER_CLOUD_NAME}/Brand` }
+    { folder:`${process.env.FOLDER_CLOUD_NAME}/Brand`}
   );
   // delet image server!
   fs.unlink(req.file.path, (err) => {
@@ -37,7 +37,7 @@ const CreateBrand = asyncHandler(async (req, res, next) => {
   });
   // send res!
   return res.status(201).json({ success: true, results: brand });
-});
+}); 
 // __________________________________________________________________________
 // Update Brand
 const UpdateBrand = asyncHandler(async (req, res, next) => {
@@ -78,20 +78,19 @@ const UpdateBrand = asyncHandler(async (req, res, next) => {
   return res.json({ success: true, message: "Brand updated successfully." });
 });
 // __________________________________________________________________________
-// delete Brand
 const DeleteBrand = asyncHandler(async (req, res, next) => {
-  const { BrandId } = req.params;
-  // التحقق من وجود الفئة
+  const { BrandId } = req.params; // تأكد من أن الـ param اسمه id في الراوت
+  // التحقق من وجود البراند
   const brand = await Brand.findById(BrandId);
   if (!brand) {
     return next(new Error("Brand not found!"));
   }
   // حذف الصورة من Cloudinary إذا كانت موجودة
-  if (brand.image.id) {
-    const result = await cloudinary.uploader.destroy(brand.image.id);
+  if (brand.image && brand.image.id) {
+    await cloudinary.uploader.destroy(brand.image.id);
   }
-  // حذف الفئة من قاعدة البيانات
-  await Brand.deleteOne({ BrandId });
+  // حذف البراند من قاعدة البيانات حسب _id
+  await Brand.findByIdAndDelete(BrandId);
   res.json({ success: true, message: "Brand deleted successfully!" });
 });
 // __________________________________________________________________________

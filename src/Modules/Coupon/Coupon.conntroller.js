@@ -1,6 +1,6 @@
 const { asyncHandler } = require("../../Utils/asyncHandler");
 const Coupon = require("../../../DB/Models/Coupon.models");
-const vouchercode = require("voucher-code-generator");// لانشاء كبون خصم كود عشوائى voucher-code-generator
+const vouchercode = require("voucher-code-generator"); // لانشاء كبون خصم كود عشوائى voucher-code-generator
 // __________________________________________________________________________
 // create code
 const CreateCoupon = asyncHandler(async (req, res, next) => {
@@ -13,7 +13,11 @@ const CreateCoupon = asyncHandler(async (req, res, next) => {
     expiredAt: new Date(req.body.expiredAt).getTime(),
     createdBy: req.user._id,
   });
-  return res.status(201).json({ success: true, results: coupon });
+  return res.status(201).json({
+    success: true,
+    message: "Create Coupon Successfliy",
+    results: coupon,
+  });
 });
 // __________________________________________________________________________
 // update code
@@ -35,7 +39,7 @@ const UpdateCoupon = asyncHandler(async (req, res, next) => {
   return res.json({
     success: true,
     results: coupon,
-    message: "coupon Update true!",
+    message: "coupon Update Successfliy",
   });
 });
 // __________________________________________________________________________
@@ -52,7 +56,7 @@ const deleteCoupon = asyncHandler(async (req, res, next) => {
     return next(new Error("User Not isAuthorized!"));
   }
   await Coupon.findOneAndDelete(req.params.code);
-  return res.json({ success: true, message: "Deleted Coupon true!" });
+  return res.json({ success: true, message: "Deleted Coupon Successfliy" });
 });
 // __________________________________________________________________________
 //  ALL Coupon
@@ -63,5 +67,35 @@ const ALLCoupons = asyncHandler(async (req, res, next) => {
     results: coupons,
   });
 });
+
+// ✅ فقط أول كوبون غير منتهي (صالح للمستخدم)
+const ValidCoupons = asyncHandler(async (req, res, next) => {
+  const now = Date.now(); // الوقت الحالي
+  // ✅ 1) حذف الكوبونات المنتهية أولًا
+  await Coupon.deleteMany({ expiredAt: { $lt: now } });
+  // ✅ 2) جلب أول كوبون غير منتهي (الأقدم من حيث الإنشاء)
+  const coupon = await Coupon.findOne({ expiredAt: { $gt: now } }).sort({
+    createdAt: 1,
+  });
+  // ✅ 3) التحقق من وجود كوبون صالح
+  if (!coupon) {
+    return res.status(404).json({
+      success: false,
+      message: "لا يوجد كوبون صالح حاليًا",
+    });
+  }
+  // ✅ 4) إرجاع الكوبون الصالح
+  return res.status(200).json({
+    success: true,
+    result: coupon,
+  });
+});
+
 // __________________________________________________________________________
-module.exports = { CreateCoupon, UpdateCoupon, deleteCoupon, ALLCoupons };
+module.exports = {
+  CreateCoupon,
+  UpdateCoupon,
+  deleteCoupon,
+  ALLCoupons,
+  ValidCoupons,
+};

@@ -47,6 +47,7 @@ const OrderSchema = new mongoose.Schema(
       type: String,
       enum: [
         "placed",
+        "paid",
         "refunded",
         "shipped",
         "delivered",
