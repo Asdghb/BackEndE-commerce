@@ -47,6 +47,7 @@ const register = asyncHandler(async (req, res, next) => {
   }
 });
 // __________________________________________________________________________
+
 // ActivateAccount
 // const ActivateAccount = asyncHandler(async (req, res, next) => {
 //   const user = await User.findOne({
@@ -213,7 +214,7 @@ const NewCreateadmin = asyncHandler(async (req, res, next) => {
 });
 // __________________________________________________________________________
 // Get All Admins
-const GetAllAdmin = asyncHandler(async (req, res,next) => {
+const GetAllAdmin = asyncHandler(async (req, res, next) => {
   const admins = await User.find({ role: "admin" });
   if (!admins || admins.length === 0) {
     return next(new Error("لا يوجد أي أدمنز في الموقع حاليًا."));
