@@ -1,57 +1,42 @@
-// // const nodemailer = require("nodemailer");
-// // const dotenv = require("dotenv").config();
-// // const sendEmail = async ({ to, subject, html, attachments }) => {
-// //   const transporter = nodemailer.createTransport({
-// //     service: "gmail",
-// //     auth: {
-// //       user: process.env.EMAIL_APP, // بريدك الإلكتروني الكامل مثل: yourname@gmail.com
-// //       pass: process.env.EMAIL_PASS, // كلمة مرور التطبيق (App Password)
-// //     },
-// //   });
-// //   const mailOptions = {
-// //     from: `"E-commerce App" <${process.env.EMAIL_APP}>`,
-// //     to,
-// //     subject,
-// //     html,
-// //     attachments,
-// //   };
-// //   try {
-// //     const info = await transporter.sendMail(mailOptions);
-// //     return info.accepted.length > 0;
-// //   } catch (err) {
-// //     console.error("Failed to send email:", err);
-// //     return false;
-// //   }
-// // };
-// // module.exports = sendEmail;
-
-
-const axios = require("axios");
+const nodemailer = require("nodemailer");
 require("dotenv").config();
 
-const sendEmail = async ({ to, subject, html }) => {
+const sendEmail = async ({ to, subject, html, attachments }) => {
   try {
-    const res = await axios.post(
-      "https://api.brevo.com/v3/smtp/email",
-      {
-        sender: { name: "E-commerce App", email: process.env.EMAIL_APP },
-        to: [{ email: to }],
-        subject,
-        htmlContent: html,
+    const transporter = nodemailer.createTransport({
+      host: "smtp-relay.brevo.com",
+      port: 587,
+      secure: false, // استخدم true لو port 465
+      auth: {
+        user: "9e354c001@smtp-brevo.com",
+        pass: "O9fLsKkgzcpC4FqZ",
       },
-      {
-        headers: {
-          "api-key": process.env.RESEND_API_KEY, // أو Sendinblue API Key
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    });
 
-    return res.status === 201;
+    const mailOptions = {
+      from: `"E-commerce App" <9e354c001@smtp-brevo.com>`,
+      to,
+      subject,
+      html,
+      attachments,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("Email sent:", info.messageId);
+    return true;
   } catch (err) {
-    console.error("Failed to send email via API:", err.response?.data || err);
+    console.error("Failed to send email via SMTP:", err);
     return false;
   }
 };
 
 module.exports = sendEmail;
+
+
+
+
+
+// EMAIL_APP=9e354c001@smtp-brevo.com
+// EMAIL_PASS=O9fLsKkgzcpC4FqZ
+// SMTP_HOST=smtp-relay.brevo.com
+// SMTP_PORT=587
