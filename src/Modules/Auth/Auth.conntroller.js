@@ -10,41 +10,55 @@ const Random = require("randomstring");
 const template_Email = require("../../Utils/Tamplet_Email");
 const Tamplet_Email_ResetPassword = require("../../Utils/ResetPassword");
 // __________________________________________________________________________
-// register
+// Register User
 const register = asyncHandler(async (req, res, next) => {
-  // data req
   const { username, email, password } = req.body;
-  // check user
+
+  // تحقق من وجود المستخدم
   const IsUser = await User.findOne({ email });
   if (IsUser) {
-    return next(new Error("Email already Register!", { cause: 409 }));
+    return next(new Error("Email already registered!", { cause: 409 }));
   }
-  // hashPassword
+
+  // تشفير الباسورد
   const hashPassword = await bcryptjs.hash(
     password,
     Number(process.env.SALT_HASH)
   );
-  // activationCode
+
+  // إنشاء كود التفعيل
   const activationCode = Math.floor(1000 + Math.random() * 9000).toString();
-  // create user
+
+  // إنشاء المستخدم في قاعدة البيانات
   const user = await User.create({
     username,
     email,
     password: hashPassword,
     activationCode,
   });
+
+  // تحضير إيميل التفعيل
   const mealhtml = template_Email(activationCode, username);
-  // send Email
+
+  // إرسال الإيميل
   const isSendEmail = await sendEmail({
     to: email,
     subject: "Activate Account",
     html: mealhtml,
   });
-  if (isSendEmail) {
-    return res.json({ success: true, message: "Pleasa review you Email" });
-  } else {
-    next(new Error("Something went wrong!"));
+
+  if (!isSendEmail) {
+    console.warn(
+      `Email failed to send to ${email}, but user registered successfully.`
+    );
   }
+
+  // الرد النهائي
+  return res.status(201).json({
+    success: true,
+    message:
+      "User registered successfully. Please check your email for activation code.",
+  });
 });
 // __________________________________________________________________________
 
