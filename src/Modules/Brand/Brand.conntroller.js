@@ -3,41 +3,43 @@ const { asyncHandler } = require("../../Utils/asyncHandler");
 const slugify = require("slugify");
 const cloudinary = require("../../Utils/cloudinary");
 const fs = require("fs");
+const uploadToCloudinary = require("../../Utils/uploadToCloudinary");
 // __________________________________________________________________________
 // create Brand
 const CreateBrand = asyncHandler(async (req, res, next) => {
-  // data!
   const { name } = req.body;
-  // user crated Brand!
-  const createdBy = req.user._id;
-  // check image file req!
-  if (!req.file) {
-    return next(new Error("Brand image is requird!"));
+
+  if (!name) {
+    return next(new Error("Brand name is required", { cause: 400 }));
   }
-  // upload Cloudinary!
-  const { secure_url, public_id } = await cloudinary.uploader.upload(
-    req.file.path,
-    { folder:`${process.env.FOLDER_CLOUD_NAME}/Brand`}
+
+  if (!req.file) {
+    return next(new Error("Brand image is required", { cause: 400 }));
+  }
+
+  const createdBy = req.user._id;
+
+  // ⬅️ رفع مباشر من الـ buffer
+  const result = await uploadToCloudinary(
+    req.file.buffer,
+    `${process.env.FOLDER_CLOUD_NAME}/Brand`
   );
-  // delet image server!
-  fs.unlink(req.file.path, (err) => {
-    if (err) {
-      console.error("Error deleting the file from server:", err);
-    }
-  });
-  // save db Brand!
+
   const brand = await Brand.create({
     name,
     createdBy,
-    image: {
-      id: public_id,
-      url: secure_url,
-    },
     slug: slugify(name),
+    image: {
+      id: result.public_id,
+      url: result.secure_url,
+    },
   });
-  // send res!
-  return res.status(201).json({ success: true, results: brand });
-}); 
+
+  res.status(201).json({
+    success: true,
+    results: brand,
+  });
+});
 // __________________________________________________________________________
 // Update Brand
 const UpdateBrand = asyncHandler(async (req, res, next) => {
