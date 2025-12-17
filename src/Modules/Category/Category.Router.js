@@ -18,14 +18,8 @@ const SubCategoryRouter = require("../SubCategory/SubCategory.Router");
 const ProductRouter = require("../Product/Product.Router");
 const CategoryRouter = express.Router();
 // __________________________________________________________________________
-// http://localhost:3000/category/:categoryId/subcategory
-CategoryRouter.use("/:categoryId/subcategory", SubCategoryRouter);
-// __________________________________________________________________________
-// http://localhost:3000/category/:categoryId/Product
-CategoryRouter.use("/:categoryId/Product", ProductRouter);
-// __________________________________________________________________________
 // Create Category 1
-// http://localhost:3000/category
+// http://localhost:3000/category/
 CategoryRouter.post(
   "/",
   isAuthentication,
@@ -34,6 +28,11 @@ CategoryRouter.post(
   isValid(CategoryValidData),
   CreateCategory
 );
+// __________________________________________________________________________
+// Get All Category
+// http://localhost:3000/category/
+CategoryRouter.get("/", GetAllCategory);
+// __________________________________________________________________________
 // __________________________________________________________________________
 // update Category 2
 // http://localhost:3000/category/:categoryId
@@ -56,8 +55,10 @@ CategoryRouter.delete(
   DeleteCategory
 );
 // __________________________________________________________________________
-// Get All Category
-// http://localhost:3000/category/
-CategoryRouter.get("/", GetAllCategory);
+// http://localhost:3000/category/:categoryId/subcategory
+CategoryRouter.use("/:categoryId/subcategory", SubCategoryRouter);
+// __________________________________________________________________________
+// http://localhost:3000/category/:categoryId/Product
+CategoryRouter.use("/:categoryId/Product", ProductRouter);
 // __________________________________________________________________________
 module.exports = CategoryRouter;

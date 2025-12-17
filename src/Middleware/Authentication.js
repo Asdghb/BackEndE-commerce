@@ -1,10 +1,8 @@
-// أولاً: Authentication (المصادقة)
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const { asyncHandler } = require("../Utils/asyncHandler");
 const Token = require("../../DB/Models/Token.models");
 const User = require("../../DB/Models/User.models");
-
 const isAuthentication = asyncHandler(async (req, res, next) => {
   // 1- check token , isValid !
   let token = req.headers["token"];
@@ -32,5 +30,4 @@ const isAuthentication = asyncHandler(async (req, res, next) => {
   // 6- return next !
   return next();
 });
-
 module.exports = isAuthentication;

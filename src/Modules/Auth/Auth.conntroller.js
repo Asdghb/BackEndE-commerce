@@ -61,25 +61,6 @@ const register = asyncHandler(async (req, res, next) => {
   });
 });
 // __________________________________________________________________________
-
-// ActivateAccount
-// const ActivateAccount = asyncHandler(async (req, res, next) => {
-//   const user = await User.findOne({
-//     activationCode: req.params.activationCode,
-//   });
-//   if (!user) {
-//     return next(new Error("User Not Found", { cause: 404 }));
-//   }
-//   user.isCofirmed = true;
-//   user.activationCode = undefined;
-//   await Cart.create({ user: user._id });
-//   await user.save();
-//   return res.redirect(
-//     `${process.env.CLIENT_URL}/login`
-//   );
-// });
-// POST /api/auth/confirmEmail
-// __________________________________________________________________________
 // ActivateAccount
 const ActivateAccount = asyncHandler(async (req, res, next) => {
   const { activationCode } = req.body;
@@ -90,14 +71,18 @@ const ActivateAccount = asyncHandler(async (req, res, next) => {
       message: "الكود غير صحيح أو الحساب مفعل بالفعل ❌",
     });
   }
+
   user.isCofirmed = true;
   user.activationCode = undefined;
-  await Cart.create({ user: user._id, products: [] });
+
+  // إنشاء سلة جديدة إذا لم تكن موجودة بالفعل
   const existingCart = await Cart.findOne({ user: user._id });
   if (!existingCart) {
-    await Cart.create({ user: user._id });
+    await Cart.create({ user: user._id, products: [] });
   }
+
   await user.save();
+
   return res.json({ success: true, message: "تم تفعيل الحساب بنجاح ✅" });
 });
 // __________________________________________________________________________

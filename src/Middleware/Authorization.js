@@ -1,8 +1,4 @@
-// ثانياً: Authorization (التفويض)
-// يعني: "ماذا يُسمح لك أن تفعل؟"
-
 const { asyncHandler } = require("../Utils/asyncHandler");
-
 const isAuthorized = (Role) => {
   return asyncHandler(async (req, res, next) => {
     if (Role !== req.user.role) {
@@ -11,5 +7,4 @@ const isAuthorized = (Role) => {
     return next();
   });
 };
-
 module.exports = isAuthorized;

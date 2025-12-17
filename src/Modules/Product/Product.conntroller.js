@@ -1,53 +1,44 @@
-
 const Product = require("../../../DB/Models/Product.models");
 const Category = require("../../../DB/Models/Category.models");
 const { asyncHandler } = require("../../Utils/asyncHandler");
-const cloudinary = require("cloudinary").v2;
-const fs = require("fs");
+const uploadToCloudinary = require("../../Utils/uploadToCloudinary");
 // __________________________________________________________________________
 // Create Product
 const CreateProduct = asyncHandler(async (req, res, next) => {
-  const {
-    name,
-    description,
-    availableItems,
-    price,
-    discount,
-    categoryId,
-  } = req.body;
-  const { nanoid } = await import("nanoid");
-  const categoryid = await Category.findById(categoryId);
-  if (!categoryid) {
-    return next(new Error("not found categoryid!", { cause: 400 }));
+  const { nanoid } = await import("nanoid"); // ✅ هنا
+
+  const { name, description, availableItems, price, discount, categoryId } =
+    req.body;
+
+  // التحقق من وجود الكاتيجوري
+  const category = await Category.findById(categoryId);
+  if (!category) {
+    return next(new Error("Category ID not found!", { cause: 400 }));
   }
+
+  // التحقق من وجود الصور
   if (!req.files || !req.files.Productimages || !req.files.defaultImage) {
     return next(new Error("Product images are required!", { cause: 400 }));
   }
+
   const cloudFolder = nanoid();
   let images = [];
-  // upload multiple images and delete from server
+
+  // رفع صور المنتج متعددة مباشرة من buffer
   for (const file of req.files.Productimages) {
-    const { secure_url, public_id } = await cloudinary.uploader.upload(
-      file.path,
-      {
-        folder: `${process.env.FOLDER_CLOUD_NAME}/products/${cloudFolder}`,
-      }
+    const result = await uploadToCloudinary(
+      file.buffer,
+      `${process.env.FOLDER_CLOUD_NAME}/products/${cloudFolder}`
     );
-    images.push({ id: public_id, url: secure_url });
-    // delete from local server
-    fs.unlink(file.path, (err) => {
-      if (err) console.error("Error deleting file:", err);
-    });
+    images.push({ id: result.public_id, url: result.secure_url });
   }
-  // upload default image
-  const { secure_url: defaultUrl, public_id: defaultId } =
-    await cloudinary.uploader.upload(req.files.defaultImage[0].path, {
-      folder: `${process.env.FOLDER_CLOUD_NAME}/products/${cloudFolder}`,
-    });
-  // delete default image from local server
-  fs.unlink(req.files.defaultImage[0].path, (err) => {
-    if (err) console.error("Error deleting default image file:", err);
-  });
+
+  // رفع الصورة الافتراضية
+  const defaultResult = await uploadToCloudinary(
+    req.files.defaultImage[0].buffer,
+    `${process.env.FOLDER_CLOUD_NAME}/products/${cloudFolder}`
+  );
+
   const product = await Product.create({
     name,
     description,
@@ -56,10 +47,14 @@ const CreateProduct = asyncHandler(async (req, res, next) => {
     discount,
     cloudFolder,
     createdBy: req.user._id,
-    defaultImage: { url: defaultUrl, id: defaultId },
+    defaultImage: {
+      id: defaultResult.public_id,
+      url: defaultResult.secure_url,
+    },
     images,
     categoryId,
   });
+
   return res.status(201).json({ success: true, results: product });
 });
 // __________________________________________________________________________

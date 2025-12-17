@@ -8,7 +8,6 @@ const uploadToCloudinary = require("../../Utils/uploadToCloudinary");
 // create Brand
 const CreateBrand = asyncHandler(async (req, res, next) => {
   const { name } = req.body;
-
   if (!name) {
     return next(new Error("Brand name is required", { cause: 400 }));
   }
@@ -44,19 +43,24 @@ const CreateBrand = asyncHandler(async (req, res, next) => {
 // Update Brand
 const UpdateBrand = asyncHandler(async (req, res, next) => {
   const { BrandId } = req.params;
-  // التحقق من وجود التصنيف
+
+  // التحقق من وجود البراند
   const brand = await Brand.findById(BrandId);
   if (!brand) {
     return next(new Error("Brand Not Found!"));
   }
+
+  // التأكد من صلاحية المستخدم
   if (req.user._id.toString() !== brand.createdBy.toString()) {
-    return next(new Error("User Not Authorization!", { cause: 404 }));
+    return next(new Error("User Not Authorized!", { cause: 403 }));
   }
-  // تحديث الاسم والسلاج إذا تم إرسالهما
+
+  // تحديث الاسم والسلاج إذا تم إرساله
   if (req.body.name) {
     brand.name = req.body.name;
     brand.slug = slugify(req.body.name);
   }
+
   // تحديث الصورة إن تم رفع صورة جديدة
   if (req.file) {
     const uploadOptions = {};
@@ -64,18 +68,24 @@ const UpdateBrand = asyncHandler(async (req, res, next) => {
     if (brand.image && brand.image.id) {
       uploadOptions.public_id = brand.image.id;
     }
-    const { secure_url, public_id } = await cloudinary.uploader.upload(
-      req.file.path,
+
+    // ⬅️ رفع مباشر من الـ buffer
+    const result = await uploadToCloudinary(
+      req.file.buffer,
+      `${process.env.FOLDER_CLOUD_NAME}/Brand`,
       uploadOptions
     );
+
     // تحديث أو إضافة الصورة
     brand.image = {
-      url: secure_url,
-      id: public_id,
+      url: result.secure_url,
+      id: result.public_id,
     };
   }
+
   // حفظ التعديلات في قاعدة البيانات
   await brand.save();
+
   // إرسال الرد
   return res.json({ success: true, message: "Brand updated successfully." });
 });

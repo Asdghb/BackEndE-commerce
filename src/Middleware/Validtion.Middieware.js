@@ -1,4 +1,3 @@
-
 const isValid = (Schema) => {
   return (req, res, next) => {
     // دمج البيانات من body و params و query
@@ -18,5 +17,4 @@ const isValid = (Schema) => {
     return next();
   };
 };
-
 module.exports = { isValid };

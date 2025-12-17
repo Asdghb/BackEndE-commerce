@@ -10,7 +10,7 @@ const ReviewsRouter = require("./Modules/Reviews/Reviews.Router");
 const morgan = require("morgan");
 const cors = require("cors");
 require("dotenv").config();
-
+// _______________________________________________
 const AppRouter = (app, express) => {
   // ✅ CORS إعداد
   app.use(
@@ -65,5 +65,5 @@ const AppRouter = (app, express) => {
     });
   });
 };
-
+// ________________________________________________
 module.exports = AppRouter;
