@@ -33,9 +33,6 @@ const sendEmail = async ({ to, subject, html, attachments }) => {
 module.exports = sendEmail;
 
 
-
-
-
 // EMAIL_APP=9e354c001@smtp-brevo.com
 // EMAIL_PASS=O9fLsKkgzcpC4FqZ
 // SMTP_HOST=smtp-relay.brevo.com
