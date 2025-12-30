@@ -1,12 +1,4 @@
 const AuthRouter = require("./Modules/Auth/Auth.router");
-const BrandRouter = require("./Modules/Brand/Brand.Router");
-const CartRouter = require("./Modules/Cart/Cart.Router");
-const CategoryRouter = require("./Modules/Category/Category.Router");
-const CouponRouter = require("./Modules/Coupon/Coupon.Router");
-const OrderRouter = require("./Modules/Order/Order.Router");
-const ProductRouter = require("./Modules/Product/Product.Router");
-const SubCategoryRouter = require("./Modules/SubCategory/SubCategory.Router");
-const ReviewsRouter = require("./Modules/Reviews/Reviews.Router");
 const morgan = require("morgan");
 const cors = require("cors");
 require("dotenv").config();
@@ -41,14 +33,7 @@ const AppRouter = (app, express) => {
 
   // ✅ Routes
   app.use("/auth", AuthRouter);
-  app.use("/category", CategoryRouter);
-  app.use("/subcategory", SubCategoryRouter);
-  app.use("/Brand", BrandRouter);
-  app.use("/Product", ProductRouter);
-  app.use("/Coupon", CouponRouter);
-  app.use("/Cart", CartRouter);
-  app.use("/Order", OrderRouter);
-  app.use("/Reviews", ReviewsRouter);
+
 
 
   // ✅ 404 Handler

@@ -1,14 +1,11 @@
 const { asyncHandler } = require("../../Utils/asyncHandler");
 const dotenv = require("dotenv").config();
 const User = require("../../../DB/Models/User.models");
-const Cart = require("../../../DB/Models/Cart.models");
+const Course = require("../../../DB/Models/Course");
 const Token = require("../../../DB/Models/Token.models");
-const sendEmail = require("../../Utils/SendEmail");
 const bcryptjs = require("bcryptjs");
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
-const Random = require("randomstring");
-const template_Email = require("../../Utils/Tamplet_Email");
-const Tamplet_Email_ResetPassword = require("../../Utils/ResetPassword");
 // __________________________________________________________________________
 // Register User
 const register = asyncHandler(async (req, res, next) => {
@@ -26,239 +23,243 @@ const register = asyncHandler(async (req, res, next) => {
     Number(process.env.SALT_HASH)
   );
 
-  // إنشاء كود التفعيل
-  const activationCode = Math.floor(1000 + Math.random() * 9000).toString();
-
   // إنشاء المستخدم في قاعدة البيانات
   const user = await User.create({
     username,
     email,
     password: hashPassword,
-    activationCode,
   });
-
-  // تحضير إيميل التفعيل
-  const mealhtml = template_Email(activationCode, username);
-
-  // إرسال الإيميل
-  const isSendEmail = await sendEmail({
-    to: email,
-    subject: "Activate Account",
-    html: mealhtml,
-  });
-
-  if (!isSendEmail) {
-    console.warn(
-      `Email failed to send to ${email}, but user registered successfully.`
-    );
-  }
 
   // الرد النهائي
   return res.status(201).json({
     success: true,
-    message:
-      "User registered successfully. Please check your email for activation code.",
+    message: "User registered successfully.",
   });
-});
-// __________________________________________________________________________
-// ActivateAccount
-const ActivateAccount = asyncHandler(async (req, res, next) => {
-  const { activationCode } = req.body;
-  const user = await User.findOne({ activationCode });
-  if (!user) {
-    return res.status(400).json({
-      success: false,
-      message: "الكود غير صحيح أو الحساب مفعل بالفعل ❌",
-    });
-  }
-
-  user.isCofirmed = true;
-  user.activationCode = undefined;
-
-  // إنشاء سلة جديدة إذا لم تكن موجودة بالفعل
-  const existingCart = await Cart.findOne({ user: user._id });
-  if (!existingCart) {
-    await Cart.create({ user: user._id, products: [] });
-  }
-
-  await user.save();
-
-  return res.json({ success: true, message: "تم تفعيل الحساب بنجاح ✅" });
 });
 // __________________________________________________________________________
 // Login
 const Login = asyncHandler(async (req, res, next) => {
-  // 1- data from req
-  const { email, password } = req.body;
-  // 2- check user db
+  const { email, password, activationCode } = req.body;
+
+  // 1- التحقق من وجود المستخدم
   const user = await User.findOne({ email });
   if (!user) {
     return next(
       new Error("The User is unavailable at the moment. Email!", { cause: 401 })
     );
   }
-  // 3- check isCofirmed
-  if (!user.isCofirmed) {
-    return next(new Error("The account is not activated.", { cause: 400 }));
-  }
-  // 4- check password
+
+  // 2- التحقق من كلمة السر
   const checkpass = await bcryptjs.compare(password, user.password);
   if (!checkpass) {
     return next(new Error("The password is incorrect.", { cause: 400 }));
   }
-  // 5- Token
+
+  // 3- التحقق من كود التفعيل لو تم إرساله
+  if (activationCode) {
+    if (user.activationCode !== activationCode) {
+      return next(new Error("Activation code is invalid.", { cause: 400 }));
+    }
+    // الكود صحيح، فعل الحساب
+    user.isCofirmed = true;
+    await user.save();
+  }
+
+  // 4- إنشاء التوكن
   const token = jwt.sign(
-    { id: user._id, email: user.email, role: user.role },
+    {
+      id: user._id,
+      email: user.email,
+      role: user.role,
+      isCofirmed: user.isCofirmed,
+    },
     process.env.TOKEN_KEY
   );
-  // 6- save token model
-  const tokenuser = await Token.create({
+
+  // 5- حفظ التوكن في DB
+  await Token.create({
     token,
     user: user._id,
     agent: req.headers["user-agent"],
   });
-  // 7- user online
+
+  // 6- تحديث حالة المستخدم online
   user.status = "online";
   await user.save();
-  // 8- res json
-  return res.json({ success: true, results: token });
-});
-// __________________________________________________________________________
-// sendForgetCode
-const sendForgetCode = asyncHandler(async (req, res, next) => {
-  const { email } = req.body;
-  // check user
-  const user = await User.findOne({ email });
-  if (!user) {
-    return next(new Error("User not found!"));
-  }
-  // generate code
-  const code = Random.generate({
-    length: 5,
-    charset: "numeric",
-  });
-  // save code in db
-  user.forgetCode = code;
-  await user.save();
-  // send email
-  const isSent = await sendEmail({
-    to: user.email,
-    subject: "Reset Password",
-    html: Tamplet_Email_ResetPassword(code),
-  });
-  if (isSent) {
-    return res.json({
-      success: true,
-      message: "Check your email for reset instructions.",
-    });
-  } else {
-    return next(new Error("Failed to send the reset email. Please try again."));
-  }
-});
-// __________________________________________________________________________
-// Reset Password
-const ResetPassword = asyncHandler(async (req, res, next) => {
-  const { forgetCode, password } = req.body;
-  // check if user exists
-  const user = await User.findOne({ forgetCode });
-  if (!user) {
-    return next(new Error("Code NO Fulse!"));
-  }
-  // delete code from user
-  user.forgetCode = undefined;
-  // hash new password
-  user.password = await bcryptjs.hash(password, Number(process.env.SALT_HASH));
-  // save updated user
-  await user.save();
-  // invalidate all existing tokens (logout from all devices)
-  const tokens = await Token.find({ user: user._id });
-  for (const token of tokens) {
-    token.isValid = false;
-    await token.save();
-  }
 
-  // send response
+  // 7- إرسال الرد
   return res.json({
     success: true,
-    message: "Password reset successfully, please try to login!",
+    results: token,
+    role: user.role,
+    isCofirmed: user.isCofirmed,
   });
 });
-// __________________________________________________________________________
-// NewCreateadmin
-const NewCreateadmin = asyncHandler(async (req, res, next) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return next(new Error("يرجى إدخال البريد الإلكتروني وكلمة المرور"));
+//  __________________________________________________________________________
+// admin
+const createActivationCode = asyncHandler(async (req, res, next) => {
+  const { email } = req.body;
+
+  // 1- التحقق من أن الادمن هو اللي ينفذ العملية
+  if (req.user.role !== "admin") {
+    return next(
+      new Error("Only admins can generate activation codes.", { cause: 403 })
+    );
   }
-  const userExists = await User.findOne({ email });
-  if (userExists) {
-    return next(new Error("هذا البريد الإلكتروني مستخدم من قبل"));
+
+  // 2- البحث عن المستخدم بالإيميل
+  const user = await User.findOne({ email });
+  if (!user) {
+    return next(new Error("User with this email not found.", { cause: 404 }));
   }
-  const salt = await bcryptjs.genSalt(10);
-  const hashedPassword = await bcryptjs.hash(password, salt);
-  const adminUser = await User.create({
-    username: "admin",
-    email,
-    password: hashedPassword,
-    role: "admin",
-    isCofirmed: true,
-  });
-  if (adminUser) {
-    res.status(201).json({
-      message: "تم إنشاء الأدمن بنجاح ",
-    });
-  } else {
-    return next(new Error("فشل إنشاء الأدمن"));
-  }
+
+  // 3- توليد كود تفعيل عشوائي (مثلاً 8 أحرف وأرقام)
+  const code = crypto.randomBytes(4).toString("hex").toUpperCase();
+
+  // 4- حفظ الكود في المستخدم
+  user.activationCode = code;
+  await user.save();
+
+  // 5- إرسال الكود كاستجابة
+  res.json({ success: true, activationCode: code });
 });
 // __________________________________________________________________________
-// Get All Admins
-const GetAllAdmin = asyncHandler(async (req, res, next) => {
-  const admins = await User.find({ role: "admin" });
-  if (!admins || admins.length === 0) {
-    return next(new Error("لا يوجد أي أدمنز في الموقع حاليًا."));
+// admin get code and eamil
+const getAllActivationCodes = asyncHandler(async (req, res, next) => {
+  // 1- تأكد أن الشخص هو الادمن
+  if (req.user.role !== "admin") {
+    return next(
+      new Error("Only admins can view activation codes.", { cause: 403 })
+    );
   }
-  res.status(200).json({
+
+  // 2- جلب كل المستخدمين مع الايميل وكود التفعيل وحالة التفعيل
+  const users = await User.find({}, { email: 1, activationCode: 1, isCofirmed: 1, _id: 0 });
+
+  // 3- حساب عدد المفعلين وغير المفعلين
+  const activatedCount = users.filter(u => u.isCofirmed).length;
+  const notActivatedCount = users.filter(u => !u.isCofirmed).length;
+
+  // 4- إرسال النتائج
+  res.json({
     success: true,
-    count: admins.length,
-    data: admins,
+    results: users,
+    stats: {
+      activated: activatedCount,
+      notActivated: notActivatedCount,
+      total: users.length
+    }
   });
 });
 // __________________________________________________________________________
-// Delete Sangle Admin
-const DeleteSangleAdmin = asyncHandler(async (req, res, next) => {
-  const { AdminId } = req.params;
-  // البحث عن الأدمن
-  const admin = await User.findById(AdminId);
-  if (!admin) {
-    return res.status(404).json({
-      success: false,
-      message: "هذا المستخدم غير موجود",
+//  get courses user
+// جلب الكورسات للمستخدم بشرط التفعيل
+const getCoursesForUser = asyncHandler(async (req, res, next) => {
+  const userId = req.user.id; // جاي من middleware للتحقق من التوكن
+
+  // 1- جلب بيانات المستخدم
+  const user = await User.findById(userId);
+  if (!user) {
+    return next(new Error("User not found.", { cause: 404 }));
+  }
+
+  // 2- تحقق من التفعيل
+  if (!user.isCofirmed) {
+    return res.json({
+      success: true, // هنا 200 عادي
+      message: "لحسابك كامل الوصول، اشترك في الكورس عبر WhatsApp: 01220978353",
+      courses: [], // ترجع array فاضية بدل ما ترجع خطأ
     });
   }
-  if (admin.role !== "admin") {
-    return res.status(400).json({
-      success: false,
-      message: "هذا المستخدم ليس أدمن بالفعل",
-    });
-  }
-  // تعديل الرول من admin إلى user
-  admin.role = "user";
-  await admin.save();
-  res.status(200).json({
-    success: true,
-    message: "تم تحويل هذا الأدمن إلى مستخدم عادي بنجاح",
-    data: admin,
-  });
+
+  // 3- جلب كل الكورسات المتاحة (يمكنك إضافة شرط isActive لو موجود في السكيمة)
+  const courses = await Course.find({});
+
+  // 4- إرسال النتائج، حتى لو مفيش كورسات يرجع array فاضية بدون أي خطأ
+  res.json({ success: true, courses });
 });
 // __________________________________________________________________________
+// - الخطوة الى بعد كدا رفع الكورس على اليتيوب الاول
+// admin createCourse
+const createCourse = asyncHandler(async (req, res, next) => {
+  const { title, description, videos } = req.body; // videos = array of YouTube links
+
+  if (!title || !videos || !Array.isArray(videos) || videos.length === 0) {
+    return next(
+      new Error("Title and at least one video link are required.", {
+        cause: 400,
+      })
+    );
+  }
+
+  const course = await Course.create({
+    title,
+    description,
+    videos,
+  });
+
+  res.status(201).json({ success: true, course });
+});
+// كدا لرفع
+// {
+//   "title": "Learn MERN Stack",
+//   "description": "كورس شامل لتعلم MERN Stack",
+//   "videos": [
+//     "https://youtu.be/VIDEO_ID1",
+//     "https://youtu.be/VIDEO_ID2",
+//     "https://youtu.be/VIDEO_ID3"
+//   ]
+// }
+// __________________________________________________________________________
+// GET /user/watchedVideos/:courseId
+const getWatchedVideos = asyncHandler(async (req, res) => {
+  const userId = req.user.id; 
+  const { courseId } = req.params;
+
+  const user = await User.findById(userId);
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  const watched = user.watchedVideos.get(courseId) || [];
+  res.json({ watched });
+});
+// __________________________________________________________________________
+// POST /user/watchVideo
+// body: { courseId: "xxx", videoIndex: 0 }
+const markVideoWatched = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const { courseId, videoIndex } = req.body;
+
+  const user = await User.findById(userId);
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  let watched = user.watchedVideos.get(courseId) || [];
+  if (!watched.includes(videoIndex)) {
+    watched.push(videoIndex);
+    user.watchedVideos.set(courseId, watched);
+    await user.save();
+  }
+
+  res.json({ message: "Video marked as watched", watched });
+});
+// __________________________________________________________________________
+// - الاشتراك
+// - الدخول ب الكود و بدونة
+// - انشاء كود لمستخدم
+// - عرض الاميل و الكود للادمن
+// - عرض الكورس للمستخدم المفعل بالكود
+// - api لرفع الكورس على الموقع من خلال الرابط
+// - الفرونت
+
+// القادم
+// - رفع الكورس على اليتيوب
+
 module.exports = {
+  createActivationCode,
+  getCoursesForUser,
+  getAllActivationCodes,
+  getWatchedVideos,
+  markVideoWatched,
+  createCourse,
   register,
-  ActivateAccount,
   Login,
-  sendForgetCode,
-  ResetPassword,
-  NewCreateadmin,
-  GetAllAdmin,
-  DeleteSangleAdmin,
 };

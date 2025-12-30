@@ -5,72 +5,77 @@ const isAuthentication = require("../../Middleware/Authentication");
 const isAuthorized = require("../../Middleware/Authorization");
 const {
   registerData,
-  activateAcount,
   LoginValid,
-  forgetcodeValid,
-  ResetPasswordValidData,
-  NewCreateadminValidData,
+  createActivationCodeV,
 } = require("./Auth.validation");
 const {
+  createActivationCode,
+  getCoursesForUser,
+  getAllActivationCodes,
+  markVideoWatched,
+  getWatchedVideos,
+  createCourse,
   register,
-  ActivateAccount,
   Login,
-  sendForgetCode,
-  ResetPassword,
-  NewCreateadmin,
-  GetAllAdmin,
-  DeleteSangleAdmin,
 } = require("./Auth.conntroller");
 // __________________________________________________________________________
-// 1- Register
+//  Register
 //  http://localhost:3000/auth/register
 AuthRouter.post("/register", isValid(registerData), register);
 // __________________________________________________________________________
-// 2- Activate account
-AuthRouter.post("/confirmEmail", isValid(activateAcount), ActivateAccount);
-// __________________________________________________________________________
-// 3- Login
+//  Login
 // http://localhost:3000/auth/login
 AuthRouter.post("/login", isValid(LoginValid), Login);
 // __________________________________________________________________________
-// 4- send Code password new
-// http://localhost:3000/auth/forgetCode
-AuthRouter.patch("/forgetCode", isValid(forgetcodeValid), sendForgetCode);
-// __________________________________________________________________________
-// 5- resetPassword
-// http://localhost:3000/auth/resetPassword
-AuthRouter.patch(
-  "/resetpassword",
-  isValid(ResetPasswordValidData),
-  ResetPassword
-);
-// __________________________________________________________________________
-// 6- NewCreateadmin
-// http://localhost:3000/auth/NewCreateadmin
+//  createActivationCode
+// http://localhost:3000/auth/createActivationCode
 AuthRouter.post(
-  "/NewCreateadmin",
+  "/createActivationCode",
   isAuthentication,
   isAuthorized("admin"),
-  isValid(NewCreateadminValidData),
-  NewCreateadmin
+  isValid(createActivationCodeV),
+  createActivationCode
 );
 // __________________________________________________________________________
-// 7- GetAllAdmin
-// http://localhost:3000/auth/GetAllAdmin
+//  getCoursesForUser
+// http://localhost:3000/auth/getCoursesForUser
 AuthRouter.get(
-  "/GetAllAdmin",
+  "/getCoursesForUser",
   isAuthentication,
-  isAuthorized("admin"),
-  GetAllAdmin
+  isAuthorized("user"),
+  getCoursesForUser
 );
 // __________________________________________________________________________
-// 8- DeleteSangleAdmin
-// http://localhost:3000/auth/DeleteSangleAdmin/:AdminId
-AuthRouter.patch(
-  "/DeleteSangleAdmin/:AdminId",
+//  getAllActivationCodes
+// http://localhost:3000/auth/getAllActivationCodes
+AuthRouter.get(
+  "/getAllActivationCodes",
   isAuthentication,
   isAuthorized("admin"),
-  DeleteSangleAdmin
+  getAllActivationCodes
+);
+// __________________________________________________________________________
+// createCourse
+// http://localhost:3000/auth/createCourse
+AuthRouter.post(
+  "/createCourse",
+  isAuthentication,
+  isAuthorized("admin"),
+  createCourse
+);
+// __________________________________________________________________________
+AuthRouter.post(
+  "/watchVideo",
+  isAuthentication,
+  isAuthorized("user"),
+  markVideoWatched
+);
+// __________________________________________________________________________
+AuthRouter.get(
+  "/watchedVideos/:courseId",
+  isAuthentication,
+  isAuthorized("user"),
+  getWatchedVideos
 );
 // __________________________________________________________________________
 module.exports = AuthRouter;

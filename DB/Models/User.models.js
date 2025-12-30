@@ -20,9 +20,6 @@ const UserSchema = new mongoose.Schema(
       type: String,
       enum: ["male", "female"],
     },
-    phone: {
-      type: String,
-    },
     status: {
       type: String,
       enum: ["online", "offline"],
@@ -37,25 +34,12 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    forgetCode: String,
-    activationCode: String,
-    profileImage: {
-      url: {
-        type: String,
-        default:
-          "https://res.cloudinary.com/dxldeqxgq/image/upload/v1745592581/bcrgbuc83gxvsxesjyvc.jpg",
-      },
-      id: {
-        type: String,
-        default: "bcrgbuc83gxvsxesjyvc",
-      },
+    watchedVideos: {
+      type: Map,
+      of: [Number],
+      default: {},
     },
-    coverImages: [
-      {
-        url: { type: String, required: true },
-        id: { type: String, required: true },
-      },
-    ],
+    activationCode: { type: String },
   },
   { timestamps: true }
 );
